@@ -1,5 +1,5 @@
-#ifndef __BSP_KEY_H
-#define __BSP_KEY_H
+#ifndef __BSP_LED_H
+#define __BSP_LED_H
 
 //************************** Include ********************************//
 
@@ -12,16 +12,24 @@
 
 typedef enum
 {
-    KEY_PRESSED = 0,
-    KEY_RELEASE = 1,
-} key_press_status_t;
+    LED_OK      = 0,        // Operation completed successfully
+    LED_ERROR   = 1,        // Run-time error without case matched
+} led_status_t;
+
+
+typedef enum
+{
+    ON      = 0,
+    OFF     = 1,
+    TOGGLE  = 2
+} led_operation_t;
 
 //************************** Defines ********************************//
 
 //************************* Declaring *******************************//
 
-void key_scan(key_press_status_t *key_press_value);
+led_status_t LED(led_operation_t operation);
 
 //************************* Declaring *******************************//
 
-#endif /* __BSP_KEY_H */
+#endif /* __BSP_LED_H */
