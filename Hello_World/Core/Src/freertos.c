@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "gpio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -118,7 +118,17 @@ void StartDefaultTask(void *argument)
   for(;;)
   {
 	printf("hello world\r\n");
-	osDelay(100);
+	if(HAL_GPIO_ReadPin(Key_GPIO_Port, Key_Pin) == GPIO_PIN_SET)
+	{
+		// 按键高电平，什么也不做
+	}
+	if(HAL_GPIO_ReadPin(Key_GPIO_Port, Key_Pin) == GPIO_PIN_RESET)	// 按键按下，翻转一次电平
+	{
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);		// 翻转电平
+		// 延时 500 ms
+		HAL_Delay(500);
+	}
+	osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
 }
