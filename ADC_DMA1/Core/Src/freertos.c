@@ -164,15 +164,15 @@ void outputTask(void *argument)
   {
     // printf("outputTask is running!\r\n");
 
-    // 1. 阻塞等待线程 A 传输的 buffer 指针 
+    // 1. 获取互斥量
+    xSemaphoreTake(xMutex, portMAX_DELAY);
+
+    // 2. 阻塞等待线程 A 传输的 buffer 指针 
 		if (xQueueReceive(Queue1, &p_buf, portMAX_DELAY) != pdPASS) 
 		{
 			printf("Failed to receive data to queue\r\n");
 			return;
 		}
-
-    // 2. 获取互斥量
-    xSemaphoreTake(xMutex, portMAX_DELAY);
 
     printf("Received buffer address: %p\r\n", p_buf);
 
