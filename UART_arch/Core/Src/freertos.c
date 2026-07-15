@@ -59,6 +59,9 @@ const osThreadAttr_t uart_frontendTask_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
 };
 
+QueueHandle_t uart_irq_Queue;
+QueueHandle_t uart_to_backend_Queue;
+
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -67,8 +70,6 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-
-QueueHandle_t uart_to_backend_Queue;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -104,12 +105,14 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
-  uart_to_backend_Queue = xQueueCreate(1,4);
+  uart_irq_Queue = xQueueCreate(5, 4);
+  uart_to_backend_Queue = xQueueCreate(5,4);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   uart_backendTaskHandle = osThreadNew(uart_backendTask_Function, NULL, &uart_backendTask_attributes);

@@ -50,7 +50,7 @@ void uart_backendTask_Function(void *argument)
         }
         if (notify != SEND_TO_BACKEND)
         {
-            log_e("Queue receive data is not the flag!");
+            log_e("Invalid backend flag!");
             continue;
         }
         

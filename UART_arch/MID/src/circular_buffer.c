@@ -47,3 +47,4 @@ buffer_status_t circular_buffer_pop(circular_buffer_t *cb, uint8_t *data)
     cb->read = (cb->read + 1) % cb->size;
     return BUFFER_OK;
 }
+
