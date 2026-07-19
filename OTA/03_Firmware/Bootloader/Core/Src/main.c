@@ -84,36 +84,20 @@ int main(void)
     else  // 按键按下
     {
       // 阻塞接收 Ymodem 升级文件到备份区 Flash
-      int32_t size = Ymodem_Receive(ymodem_buf, APP_BACK_ADDRESS);
-      if (YMODEM_ERR_FILE_TOO_BIG == size)
+      Ymodem_Receive(ymodem_buf, APP_BACK_ADDRESS);
+      // 将备份区 Flash 的 APP 镜像拷贝到 APP 区
+      copy_status_t copy_status = copy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, 0x17FFF);
+      if (copy_status == COPY_SUCCESS)
       {
-        log_e("file too big!");
+        log_i("copy back to app success!");
+        jump_to_app(APP_START_ADDRESS);
       }
-      else if (YMODEM_ERR_FLASH_FAIL == size)
+      else
       {
-        log_e("flash write failed!");
-      }
-      else if (YMODEM_ERR_USER_ABORT == size)
-      {
-        log_e("user abort!");
-      }
-      else if (size > 0)
-      {
-        log_i("receive app size: %d bytes", size);
-        // 将备份区 Flash 的 APP 镜像拷贝到 APP 区
-        copy_status_t copy_status = copy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, size);
-        if (copy_status == COPY_SUCCESS)
-        {
-          log_i("copy back to app success!");
-          jump_to_app(APP_START_ADDRESS);
-        }
-        else
-        {
-          log_e("copy back to app failed!");
-        }
+        log_e("copy back to app failed!");
       }
     }
-    log_i("no valid app, please press key to upgrade!");
+    // log_i("no valid app, please press key to upgrade!");
     Delay(50);
 	}
 }

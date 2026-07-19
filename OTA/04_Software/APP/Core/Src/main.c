@@ -75,7 +75,8 @@ PUTCHAR_PROTOTYPR
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  SCB->VTOR = FLASH_BASE | 0x8000;
+  __enable_irq();
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/

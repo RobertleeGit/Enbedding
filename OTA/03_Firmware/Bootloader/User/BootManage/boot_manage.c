@@ -50,7 +50,8 @@ copy_status_t copy_back_to_app(uint32_t back_address, uint32_t app_address, uint
 
     for (uint32_t i = 0; i < app_size; i += 4)
     {
-        if (Program_Word((uint32_t)dst, *src) != FLASH_COMPLETE)
+		uint32_t data = *src;
+        if (Program_Word((uint32_t)dst, data) != FLASH_COMPLETE)
         {
             return COPY_ERROR;
         }
