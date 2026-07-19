@@ -6,6 +6,7 @@
 #include "gpio.h"
 #include "usart.h"
 #include "flash.h"
+#include "ymodem.h"
 
 #include "Debug.h"
 #include "boot_manage.h"
@@ -25,7 +26,7 @@
 /* Private variables ---------------------------------------------------------*/
 static __IO uint32_t uwTimingDelay;
 RCC_ClocksTypeDef RCC_Clocks;
-
+static uint8_t ymodem_buf[1029];
 /* Private function prototypes -----------------------------------------------*/
 
 /* Private functions ---------------------------------------------------------*/
@@ -59,10 +60,12 @@ int main(void)
 	SysTick_Config(RCC_Clocks.HCLK_Frequency / 1000);
 
 	/************************** Add your application code here **************************/	
-    /* 初始化 Key 和 LED */
+  /* 初始化 Key 和 LED */
 	GPIO_Config();
-    /* 初始化 USART1 */
-    USART1_Configuration();
+  /* 初始化 USART1 */
+  USART1_Configuration();
+	
+	LED_OFF;
 
 	// TIM_Config();
 
@@ -70,25 +73,24 @@ int main(void)
 	EasyLogger_Init();
 	log_d("hello world");
 	
-    // test flash
-    Erase_Sector(FLASH_Sector_3);
-    Program_Word(0x0800C000, 0x88);
+	Ymodem_Receive(ymodem_buf);
 
 	Delay(10);
 	// 跳转到 APP
-	// jump_to_app();
+	jump_to_app();
 	
 	/* Infinite loop */
 	while (1)
 	{
-        if(1 == Key_Scan()) {
-            LED_ON;
-            printf("led on\r\n");
-        }
-        else {
-            LED_OFF;
-            printf("led off\r\n");
-        }
+		// test UART and LED and Key GPIO
+//        if(1 == Key_Scan()) {
+//            LED_ON;
+//            printf("led on\r\n");
+//        }
+//        else {
+//            LED_OFF;
+//            printf("led off\r\n");
+//        }
 	}
 }
 
