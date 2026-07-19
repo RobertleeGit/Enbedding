@@ -6,6 +6,7 @@
 #include "gpio.h"
 #include "usart.h"
 #include "flash.h"
+#include "common.h"
 #include "ymodem.h"
 
 #include "Debug.h"
@@ -23,6 +24,7 @@
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
+
 /* Private variables ---------------------------------------------------------*/
 static __IO uint32_t uwTimingDelay;
 RCC_ClocksTypeDef RCC_Clocks;
@@ -60,37 +62,59 @@ int main(void)
 	SysTick_Config(RCC_Clocks.HCLK_Frequency / 1000);
 
 	/************************** Add your application code here **************************/	
+  // TIM_Config();
   /* 初始化 Key 和 LED */
 	GPIO_Config();
   /* 初始化 USART1 */
-  USART1_Configuration();
-	
+  USART1_Configuration();	
 	LED_OFF;
-
-	// TIM_Config();
 
 	// test log
 	EasyLogger_Init();
 	log_d("hello world");
 	
-	Ymodem_Receive(ymodem_buf);
-
-	Delay(10);
-	// 跳转到 APP
-	jump_to_app();
-	
 	/* Infinite loop */
 	while (1)
 	{
-		// test UART and LED and Key GPIO
-//        if(1 == Key_Scan()) {
-//            LED_ON;
-//            printf("led on\r\n");
-//        }
-//        else {
-//            LED_OFF;
-//            printf("led off\r\n");
-//        }
+    // 按键松开直接跳转到 APP
+    if (0 == Key_Scan())
+    {
+      jump_to_app(APP_START_ADDRESS);
+    }
+    else  // 按键按下
+    {
+      // 阻塞接收 Ymodem 升级文件到备份区 Flash
+      int32_t size = Ymodem_Receive(ymodem_buf, APP_BACK_ADDRESS);
+      if (YMODEM_ERR_FILE_TOO_BIG == size)
+      {
+        log_e("file too big!");
+      }
+      else if (YMODEM_ERR_FLASH_FAIL == size)
+      {
+        log_e("flash write failed!");
+      }
+      else if (YMODEM_ERR_USER_ABORT == size)
+      {
+        log_e("user abort!");
+      }
+      else if (size > 0)
+      {
+        log_i("receive app size: %d bytes", size);
+        // 将备份区 Flash 的 APP 镜像拷贝到 APP 区
+        copy_status_t copy_status = copy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, size);
+        if (copy_status == COPY_SUCCESS)
+        {
+          log_i("copy back to app success!");
+          jump_to_app(APP_START_ADDRESS);
+        }
+        else
+        {
+          log_e("copy back to app failed!");
+        }
+      }
+    }
+    log_i("no valid app, please press key to upgrade!");
+    Delay(50);
 	}
 }
 

@@ -26,7 +26,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_led.h"
-#include "bsp_key.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,31 +113,14 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-  /* USER CODE BEGIN StartDefaultTask */
-  static KeyContext_t g_keyContext;       // 按键上下文结构体
-  Key_Init(&g_keyContext);
-  keyevent_t event = KEY_EVENT_NONE;
   /* Infinite loop */
   for(;;)
   {
 	// printf("KeyThread is running\r\n");
-	// 扫描按键获取按键状态
-    Key_Scan(&g_keyContext, &event);
-    
-	if (KEY_EVENT_SHORT_PRESS == g_keyContext.key_event)
-    {
-      LED(TOGGLE);
-    }
-    if (KEY_EVENT_LONG_PRESS  == g_keyContext.key_event)
-    {
-	  for (size_t i = 0; i < 3; i++)
-	  {
-		LED(TOGGLE);
-		HAL_Delay(500);
-		LED(TOGGLE);
-		HAL_Delay(500);
-	  }
-    }
+	LED(TOGGLE);
+	HAL_Delay(500);
+	LED(TOGGLE);
+	HAL_Delay(500);
 	osDelay(10);
   }
   /* USER CODE END StartDefaultTask */
