@@ -185,7 +185,7 @@ void outputTask(void *argument)
     // 5. 释放互斥量
     xSemaphoreGive(xMutex);
 
-    osDelay(100);
+    osDelay(1);
   }
 }
 /* USER CODE END Application */

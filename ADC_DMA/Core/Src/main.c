@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "elog.h"
+#include "SEGGER_SYSVIEW.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -84,7 +85,8 @@ void EasyLogger_Init(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+  SEGGER_SYSVIEW_Conf();		// config and init systemview
+  SEGGER_SYSVIEW_Start();		// start the systemview
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/

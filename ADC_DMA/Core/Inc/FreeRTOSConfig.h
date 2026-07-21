@@ -45,6 +45,7 @@
 
 /* USER CODE BEGIN Includes */
 /* Section where include file can be added */
+#include "SEGGER_SYSVIEW_FreeRTOS.h"
 /* USER CODE END Includes */
 
 /* Ensure definitions are only used by the compiler, and not by the assembler. */
@@ -58,6 +59,10 @@
 
 #define configENABLE_FPU                         0
 #define configENABLE_MPU                         0
+
+// support for systemview
+#define INCLUDE_xTaskGetIdleTaskHandle 			     1
+#define INCLUDE_pxTaskGetStackStart 			       1
 
 #define configUSE_PREEMPTION                     1
 #define configSUPPORT_STATIC_ALLOCATION          1
