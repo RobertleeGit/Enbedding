@@ -28,7 +28,9 @@
 /* Private variables ---------------------------------------------------------*/
 static __IO uint32_t uwTimingDelay;
 RCC_ClocksTypeDef RCC_Clocks;
-static uint8_t ymodem_buf[1029];
+
+uint8_t ymodem_buf[1029];
+int size = 11;
 /* Private function prototypes -----------------------------------------------*/
 
 /* Private functions ---------------------------------------------------------*/
@@ -79,14 +81,15 @@ int main(void)
     // 按键松开直接跳转到 APP
     if (0 == Key_Scan())
     {
-      jump_to_app(APP_START_ADDRESS);
+      // jump_to_app(APP_START_ADDRESS);
     }
     else  // 按键按下
     {
       // 阻塞接收 Ymodem 升级文件到备份区 Flash
-      Ymodem_Receive(ymodem_buf, APP_BACK_ADDRESS);
+      size = Ymodem_Receive(ymodem_buf, APP_BACK_ADDRESS);
+      // log_d("app size = %d", size);
       // 将备份区 Flash 的 APP 镜像拷贝到 APP 区
-      copy_status_t copy_status = copy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, 0x17FFF);
+      copy_status_t copy_status = decodeCopy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, size);
       if (copy_status == COPY_SUCCESS)
       {
         log_i("copy back to app success!");
