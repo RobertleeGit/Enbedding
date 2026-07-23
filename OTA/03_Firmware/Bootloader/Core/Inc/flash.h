@@ -15,6 +15,7 @@
  *         Sector 7: 0x0806_0000 ~ 0x0807_FFFF  (128KB)
  **********************************************************/
 
+#define FLASH_SIZE 0x80000  /* STM32F411CE 内部 Flash 总大小: 512KB */
 
 uint32_t Get_Flash_Size(void);
 

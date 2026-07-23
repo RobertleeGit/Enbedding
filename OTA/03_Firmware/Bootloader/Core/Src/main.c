@@ -8,7 +8,7 @@
 #include "flash.h"
 #include "ymodem.h"
 #include "spi.h"
-#include "w25qxx.h"
+#include "w25q64_handler.h"
 
 #include "Debug.h"
 #include "boot_manage.h"
@@ -73,17 +73,10 @@ int main(void)
   USART1_Configuration();
   /* 初始化 EasyLogger */
   EasyLogger_Init();
-  // /* 初始化 SPI */
-  // SPI_Flash_Init();
-  // /* 初始化 W25QXX */
-  // if (W25Qx_Init() != W25Qx_OK)
-  // {
-  //   log_e("W25Qx_Init failed!");
-  // }
-  // else
-  // {
-  //   log_i("W25Qx_Init success!");
-  // }
+  /* 初始化 SPI */
+  SPI_Flash_Init();
+  /* 初始化 W25Q64 */
+  W25Q64_Handler_Init();
 
 	// test
 	LED_OFF;

@@ -30,7 +30,7 @@ FLASH_Status Program_Word(uint32_t address, uint32_t data) {
 }
 
 uint32_t Get_Flash_Size(void) {
-    return 0x80000;  /* 单位: 字节 */
+    return FLASH_SIZE;  /* 单位: 字节 */
 }
 
 /**
