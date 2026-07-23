@@ -15,6 +15,9 @@
  *         Sector 7: 0x0806_0000 ~ 0x0807_FFFF  (128KB)
  **********************************************************/
 
+
+uint32_t Get_Flash_Size(void);
+
 FLASH_Status Erase_Sector(uint32_t FLASH_Sector);
 
 FLASH_Status Program_Word(uint32_t address, uint32_t data);

@@ -39,6 +39,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+extern __IO uint32_t uwTick;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -136,13 +137,16 @@ void PendSV_Handler(void)
 
 /**
   * @brief  This function handles SysTick Handler.
+  *         Increments uwTick each millisecond.
   * @param  None
   * @retval None
   */
 void SysTick_Handler(void)
 {
-  TimingDelay_Decrement();
+    uwTick++;
+    TimingDelay_Decrement();
 }
+
 
 /******************************************************************************/
 /*                 STM32F4xx Peripherals Interrupt Handlers                   */

@@ -40,6 +40,7 @@
 /* Exported functions ------------------------------------------------------- */
 void TimingDelay_Decrement(void);
 void Delay(__IO uint32_t nTime);
+uint32_t GetTick(void);
 
 #endif /* __MAIN_H */
 

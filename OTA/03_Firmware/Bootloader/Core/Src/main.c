@@ -6,8 +6,9 @@
 #include "gpio.h"
 #include "usart.h"
 #include "flash.h"
-#include "common.h"
 #include "ymodem.h"
+#include "spi.h"
+#include "w25qxx.h"
 
 #include "Debug.h"
 #include "boot_manage.h"
@@ -27,6 +28,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 static __IO uint32_t uwTimingDelay;
+__IO uint32_t uwTick = 0;
 RCC_ClocksTypeDef RCC_Clocks;
 
 uint8_t ymodem_buf[1029];
@@ -68,13 +70,23 @@ int main(void)
   /* 初始化 Key 和 LED */
 	GPIO_Config();
   /* 初始化 USART1 */
-  USART1_Configuration();	
-	LED_OFF;
+  USART1_Configuration();
+  /* 初始化 EasyLogger */
+  EasyLogger_Init();
+  // /* 初始化 SPI */
+  // SPI_Flash_Init();
+  // /* 初始化 W25QXX */
+  // if (W25Qx_Init() != W25Qx_OK)
+  // {
+  //   log_e("W25Qx_Init failed!");
+  // }
+  // else
+  // {
+  //   log_i("W25Qx_Init success!");
+  // }
 
-	// test log
-	EasyLogger_Init();
-	log_d("hello world");
-	
+	// test
+	LED_OFF;
 	/* Infinite loop */
 	while (1)
 	{
@@ -128,6 +140,15 @@ void TimingDelay_Decrement(void)
 	{ 
 		uwTimingDelay--;
 	}
+}
+
+/**
+  * @brief  Get current tick value in milliseconds.
+  * @retval Current tick
+  */
+uint32_t GetTick(void)
+{
+    return uwTick;
 }
 
 #ifdef  USE_FULL_ASSERT

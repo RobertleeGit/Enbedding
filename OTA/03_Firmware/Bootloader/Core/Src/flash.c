@@ -29,6 +29,9 @@ FLASH_Status Program_Word(uint32_t address, uint32_t data) {
     return status;
 }
 
+uint32_t Get_Flash_Size(void) {
+    return 0x80000;  /* 单位: 字节 */
+}
 
 /**
  * @brief  擦除从 startAddr 开始、长度为 size 的 Flash 区域
