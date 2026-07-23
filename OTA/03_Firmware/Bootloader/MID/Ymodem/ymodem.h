@@ -87,8 +87,8 @@
  */
 typedef enum {
     YMODEM_OK_CANCELLED     =  0,   /* 传输被取消或会话正常结束 */
-    YMODEM_ERR_FILE_TOO_BIG = -1,   /* 文件大小超过 Flash 可用空间 */
-    YMODEM_ERR_FLASH_FAIL   = -2,   /* Flash 擦除 / 编程 / 校验失败 */
+    YMODEM_ERR_FILE_TOO_BIG = -1,   /* 文件大小超过存储可用空间 */
+    YMODEM_ERR_STORAGE_FAIL = -2,   /* 存储擦除 / 编程 / 校验失败 */
     YMODEM_ERR_USER_ABORT   = -3    /* 用户主动中止传输 */
 } Ymodem_Status;
 
@@ -117,17 +117,18 @@ typedef enum {
 /**
  * @brief  Ymodem 协议接收文件 (Bootloader 核心入口)
  * @param  buf: 接收缓冲区指针 (至少需要 PACKET_1K_SIZE + PACKET_OVERHEAD 字节)
- * @param  starting_address: Flash 写入起始地址 (必须是有效的 Flash 区域)
  * @retval >0:                            成功，返回接收到的文件总大小 (字节数)
  * @retval YMODEM_OK_CANCELLED     ( 0):  传输被取消或会话结束
- * @retval YMODEM_ERR_FILE_TOO_BIG (-1):  文件大小超过 Flash 可用空间
- * @retval YMODEM_ERR_FLASH_FAIL   (-2):  Flash 擦除 / 编程 / 校验失败
+ * @retval YMODEM_ERR_FILE_TOO_BIG (-1):  文件大小超过存储可用空间
+ * @retval YMODEM_ERR_STORAGE_FAIL (-2):  存储擦除 / 编程 / 校验失败
  * @retval YMODEM_ERR_USER_ABORT   (-3):  用户中止传输
  *
- * @note   此函数是阻塞式的，会持续接收直到传输完成或出错。
- *         函数内部会自动完成 Flash 擦除、写入和校验。
+ * @note   调用前必须先执行 YmodemPort_StorageInit() 设置写入目标。
+ *         此函数是阻塞式的，会持续接收直到传输完成或出错。
+ *         函数内部会自动完成存储擦除、写入和校验。
+ *         协议层仅使用字节偏移量，不感知存储介质绝对地址。
  */
-int32_t Ymodem_Receive(uint8_t *buf, uint32_t starting_address);
+int32_t Ymodem_Receive(uint8_t *buf);
 
 /**
  * @brief  更新 CRC16 值 (单字节增量计算)

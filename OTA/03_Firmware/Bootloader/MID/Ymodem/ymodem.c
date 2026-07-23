@@ -3,21 +3,25 @@
  * @file    ymodem.c
  * @brief   Ymodem 协议接收端 (Receiver) 完整实现
  * @note    本文件是 Bootloader OTA 升级的核心，通过串口 + Ymodem 协议
- *          接收上位机发送的固件镜像，并烧录到 STM32F411CE 内部 Flash。
+ *          接收上位机发送的固件镜像。
  *
  *         【重要】本文件不含发送功能 (Transmit)，仅做接收。
  *
+ *         【存储抽象】协议层仅使用字节偏移量，所有存储操作通过
+ *         ymodem_port 接口完成，不感知存储介质类型 (内部/外部 Flash 等)
+ *         或绝对地址。
+ *
  * 依赖关系：
  *   ymodem.c
- *     |-- ymodem.h
- *     |-- ymodem_port.h 
+ *     |-- ymodem.h       (协议常量)
+ *     |-- ymodem_port.h  (串口 + 存储抽象接口)
  ******************************************************************************
  */
 
 /* 包含头文件 ----------------------------------------------------------------*/
-#include "ymodem_port.h" /* SerialKeyPressed, SerialPutChar, YmodemPort_FlashXxx */
-#include "ymodem.h"     /* 协议常量: SOH, STX, EOT, ACK, NAK 等 */
-#include <string.h>     /* memcpy */
+#include "ymodem_port.h" /* SerialKeyPressed, SerialPutChar, YmodemPort_StorageXxx */
+#include "ymodem.h"      /* 协议常量: SOH, STX, EOT, ACK, NAK 等 */
+#include <string.h>      /* memcpy */
 
 /* ============================================================
  * 模块私有 (static) 函数声明
@@ -29,20 +33,19 @@ static int32_t Receive_Byte(uint8_t *c, uint32_t timeout);
 static RecvPacket_Status Receive_Packet(uint8_t *data, int32_t *length, uint32_t timeout);
 /* 发送一个字节 (封装，内部调用 SerialPutChar) */
 static uint32_t Send_Byte(uint8_t c);
-/* 处理第 0 号包：解析文件名 & 大小 → 校验空间 → 擦除 Flash → 应答 */
-static int32_t Ymodem_ProcessPacket0(const uint8_t *packet_data, uint32_t starting_address);
-/* 将一包数据写入 Flash 并逐 Word 校验 */
-static Ymodem_Status Ymodem_FlashWritePacket(const uint8_t *src, 
-                                             int32_t length,
-                                             uint32_t starting_address, 
-                                             int32_t total_size);
+/* 处理第 0 号包：解析文件名 & 大小 → 校验存储空间 → 擦除 → 应答 */
+static int32_t Ymodem_ProcessPacket0(const uint8_t *packet_data);
+/* 将一包数据写入存储并校验 */
+static Ymodem_Status Ymodem_StorageWritePacket(const uint8_t *src, 
+                                               int32_t length,
+                                               int32_t total_size);
 
 /* ============================================================
  * 模块私有 (static) 变量
  * ============================================================ */
 
-/* Flash 当前写入地址 (在 Ymodem_Receive 中被修改) */
-static uint32_t FlashDestination;
+/* 已写入的字节数 (相对偏移量，从 0 开始) */
+static uint32_t bytes_written;
 
 /**
  * @brief  带超时的单字节接收
@@ -191,14 +194,13 @@ static RecvPacket_Status Receive_Packet(uint8_t *data, int32_t *length, uint32_t
 
 /**
  * @brief  处理第 0 号包 (文件名 & 文件大小)
- * @note   负责：解析文件名/大小 → 校验 Flash 空间 → 擦除 Flash → 发送应答
- * @param  packet_data:     原始协议包数据
- * @param  starting_address: Flash 写入起始地址
- * @retval >0:                         成功，返回文件总大小 (字节)
- * @retval YMODEM_ERR_FILE_TOO_BIG (-1): 文件超出 Flash 容量
- * @retval YMODEM_ERR_FLASH_FAIL  (-2):  Flash 擦除失败
+ * @note   负责：解析文件名/大小 → 校验存储空间 → 擦除存储 → 发送应答
+ * @param  packet_data: 原始协议包数据
+ * @retval >0:                          成功，返回文件总大小 (字节)
+ * @retval YMODEM_ERR_FILE_TOO_BIG (-1): 文件超出存储可用容量
+ * @retval YMODEM_ERR_STORAGE_FAIL (-2): 存储擦除失败
  */
-static int32_t Ymodem_ProcessPacket0(const uint8_t *packet_data, uint32_t starting_address)
+static int32_t Ymodem_ProcessPacket0(const uint8_t *packet_data)
 {
     uint8_t  file_size_str[FILE_SIZE_LENGTH];
     uint8_t *file_ptr;
@@ -226,24 +228,23 @@ static int32_t Ymodem_ProcessPacket0(const uint8_t *packet_data, uint32_t starti
         size = size * 10 + (file_size_str[i] - '0');
     }
 
-    uint32_t flash_size = YmodemPort_GetFlashSize();
-    /* (c) 检查文件大小是否超出可用 Flash */
-    if (size > (flash_size - (starting_address - 0x08000000)))
+    /* 检查文件大小是否超出存储可用容量 */
+    if ((uint32_t)size > YmodemPort_GetCapacity())
     {
         Send_Byte(CA);
         Send_Byte(CA);
         return YMODEM_ERR_FILE_TOO_BIG;
     }
 
-    /* (d) 擦除 Flash 目标区域 (STM32F4 要求写入前必须先擦除) */
-    if (YmodemPort_FlashErase(starting_address, (uint32_t)size) != YMODEM_PORT_OK)
+    /* 擦除存储目标区域 */
+    if (YmodemPort_StorageErase((uint32_t)size) != YMODEM_PORT_OK)
     {
         Send_Byte(CA);
         Send_Byte(CA);
-        return YMODEM_ERR_FLASH_FAIL;
+        return YMODEM_ERR_STORAGE_FAIL;
     }
 
-    /* (e) 回复 ACK + CRC16 请求，通知发送端开始传输数据 */
+    /* 回复 ACK + CRC16 请求，通知发送端开始传输数据 */
     Send_Byte(ACK);
     Send_Byte(CRC16);
 
@@ -251,45 +252,34 @@ static int32_t Ymodem_ProcessPacket0(const uint8_t *packet_data, uint32_t starti
 }
 
 /**
- * @brief  将一包数据写入 Flash 并逐 Word 校验
- * @note   每写入一个 Word (4 字节) 后立即读回比对，确保写入正确。
- *         同时更新模块级静态变量 FlashDestination。
- * @param  src:              RAM 中的数据源指针
- * @param  length:           本包有效载荷长度 (128 或 1024 字节)
- * @param  starting_address: Flash 基地址 (用于越界检查)
- * @param  total_size:       文件总大小 (用于越界检查)
- * @retval YMODEM_OK_CANCELLED  ( 0): 写入完成
- * @retval YMODEM_ERR_FLASH_FAIL (-2): 编程或校验失败
+ * @brief  将一包数据写入存储并校验
+ * @note   通过 port 层接口以偏移量方式写入，内部自动逐 Word 校验。
+ *         写入成功后更新模块级静态变量 bytes_written。
+ * @param  src:        RAM 中的数据源指针
+ * @param  length:     本包有效载荷长度 (128 或 1024 字节)
+ * @param  total_size: 文件总大小 (用于越界检查，防止最后一包超出)
+ * @retval YMODEM_OK_CANCELLED   ( 0): 写入完成
+ * @retval YMODEM_ERR_STORAGE_FAIL (-2): 编程或校验失败
  */
-static Ymodem_Status Ymodem_FlashWritePacket(const uint8_t *src, 
-                                             int32_t length,
-                                             uint32_t starting_address,
-                                             int32_t total_size)
+static Ymodem_Status Ymodem_StorageWritePacket(const uint8_t *src, 
+                                               int32_t length,
+                                               int32_t total_size)
 {
-    uint32_t ram_addr = (uint32_t)src;
-    int32_t  i;
-
-    for (i = 0; (i < length) && (FlashDestination < starting_address + total_size); i += 4)
+    /* 防止最后一包超出文件总大小 */
+    if ((int32_t)(bytes_written + length) > total_size)
     {
-        /* 写入一个 Word */
-        if (YmodemPort_FlashWriteWord(FlashDestination, *(uint32_t *)ram_addr) != YMODEM_PORT_OK)
-        {
-            Send_Byte(CA);
-            Send_Byte(CA);
-            return YMODEM_ERR_FLASH_FAIL;
-        }
-
-        /* 读回校验 */
-        if (YmodemPort_FlashVerify(FlashDestination, *(uint32_t *)ram_addr) != YMODEM_PORT_OK)
-        {
-            Send_Byte(CA);
-            Send_Byte(CA);
-            return YMODEM_ERR_FLASH_FAIL;
-        }
-
-        FlashDestination += 4;
-        ram_addr         += 4;
+        length = total_size - (int32_t)bytes_written;
     }
+
+    /* 通过 port 层以偏移量方式写入并校验 */
+    if (YmodemPort_StorageWrite(bytes_written, src, (uint32_t)length) != YMODEM_PORT_OK)
+    {
+        Send_Byte(CA);
+        Send_Byte(CA);
+        return YMODEM_ERR_STORAGE_FAIL;
+    }
+
+    bytes_written += (uint32_t)length;
 
     Send_Byte(ACK);  /* 本包写入完成，应答发送端 */
     return YMODEM_OK_CANCELLED;  /* 0 — 正常 */
@@ -302,30 +292,29 @@ static Ymodem_Status Ymodem_FlashWritePacket(const uint8_t *src,
 /**
  * @brief  Ymodem 协议接收文件
  * @param  buf[in]: 接收缓冲区指针 (至少 PACKET_1K_SIZE + PACKET_OVERHEAD 字节)
- * @param  starting_address[in]: Flash 写入起始地址 (必须是有效的 Flash 区域)
- * @param  size[out]: 输出参数，接收到的文件总大小 (字节)
- * @retval >0:                           成功，返回接收到的文件总大小 (字节数)
- * @retval YMODEM_OK_CANCELLED   ( 0):   传输被取消或无文件传输
- * @retval YMODEM_ERR_FILE_TOO_BIG (-1): 文件大小超过 Flash 可用空间
- * @retval YMODEM_ERR_FLASH_FAIL  (-2):  Flash 写入校验失败 (写入后读回不一致)
- * @retval YMODEM_ERR_USER_ABORT  (-3):  用户中止传输
+ * @retval >0:                            成功，返回接收到的文件总大小 (字节数)
+ * @retval YMODEM_OK_CANCELLED     ( 0):  传输被取消或无文件传输
+ * @retval YMODEM_ERR_FILE_TOO_BIG (-1):  文件大小超过存储可用空间
+ * @retval YMODEM_ERR_STORAGE_FAIL (-2):  存储写入校验失败
+ * @retval YMODEM_ERR_USER_ABORT   (-3):  用户中止传输
  *
- * @note   完整的 Ymodem 接收流程：
+ * @note   调用前必须通过 YmodemPort_StorageInit() 设置存储目标。
+ *         完整的 Ymodem 接收流程：
  *
  *         【阶段 1 — 握手等待】
  *         循环发送 'C' (CRC16请求)，直到发送端开始发送第 0 号包。
  *
  *         【阶段 2 — 接收文件名包 (第 0 号包)】
- *         调用 Ymodem_ProcessPacket0() 解析并擦除 Flash。
+ *         调用 Ymodem_ProcessPacket0() 解析并擦除存储。
  *
  *         【阶段 3 — 接收数据包 (第 1 ~ N 号包)】
- *         逐包接收 128/1024 字节数据，调用 Ymodem_FlashWritePacket() 写入 Flash。
+ *         逐包接收 128/1024 字节数据，调用 Ymodem_StorageWritePacket() 写入。
  *         每包校验序号和 CRC16，正确则回复 ACK，错误则回复 NAK。
  *
  *         【阶段 4 — 传输结束】
  *         收到 EOT 回复 ACK，收到空文件名包确认会话结束。
  */
-int32_t Ymodem_Receive(uint8_t *buf, uint32_t starting_address)
+int32_t Ymodem_Receive(uint8_t *buf)
 {
     uint8_t  packet_data[PACKET_1K_SIZE + PACKET_OVERHEAD];
     uint8_t *buf_ptr;
@@ -334,7 +323,7 @@ int32_t Ymodem_Receive(uint8_t *buf, uint32_t starting_address)
     int32_t  packets_received, errors, session_begin;
     int32_t  size = 0;
 
-    FlashDestination = starting_address;
+    bytes_written = 0;
 
     /* ============================================================
      * 外层循环：Ymodem 会话 (本实现仅处理单文件)
@@ -362,7 +351,7 @@ int32_t Ymodem_Receive(uint8_t *buf, uint32_t starting_address)
 
                         case PACKET_LEN_EOT:
                             /* 传输结束 (收到 EOT)
-                             * 发送 ACK + CRC16('C') 通知发送端准备接收空文件名包，*/
+                             * 发送 ACK + CRC16('C') 通知发送端准备接收空文件名包 */
                             Send_Byte(ACK);
                             Send_Byte(CRC16);
                             file_done = 1;
@@ -383,7 +372,7 @@ int32_t Ymodem_Receive(uint8_t *buf, uint32_t starting_address)
                                     if (packet_data[PACKET_HEADER] != 0)
                                     {
                                         int32_t result;
-                                        result = Ymodem_ProcessPacket0(packet_data, starting_address);
+                                        result = Ymodem_ProcessPacket0(packet_data);
                                         if (result < 0)
                                         {
                                             return result;  /* 错误码直接返回 */
@@ -401,14 +390,14 @@ int32_t Ymodem_Receive(uint8_t *buf, uint32_t starting_address)
                                 }
                                 else
                                 {
-                                    /* --- 第 1 ~ N 号包：数据写入 Flash --- */
+                                    /* --- 第 1 ~ N 号包：数据写入存储 --- */
                                     Ymodem_Status status;
 
                                     /* 将数据从协议包拷贝到用户缓冲区 */
                                     memcpy(buf_ptr, packet_data + PACKET_HEADER, packet_length);
 
-                                    /* 写入 Flash + 校验 */
-                                    status = Ymodem_FlashWritePacket(buf, packet_length, starting_address, size);
+                                    /* 写入存储 + 校验 */
+                                    status = Ymodem_StorageWritePacket(buf, packet_length, size);
                                     if (status != YMODEM_OK_CANCELLED)
                                     {
                                         return status;

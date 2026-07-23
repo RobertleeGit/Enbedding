@@ -7,6 +7,7 @@
 #include "usart.h"
 #include "flash.h"
 #include "ymodem.h"
+#include "ymodem_port.h"
 #include "spi.h"
 #include "w25q64_handler.h"
 
@@ -90,8 +91,10 @@ int main(void)
     }
     else  // 按键按下
     {
-      // 阻塞接收 Ymodem 升级文件到备份区 Flash
-      size = Ymodem_Receive(ymodem_buf, APP_BACK_ADDRESS);
+      // 初始化 Ymodem 存储目标 (内部 Flash 备份区)
+      YmodemPort_StorageInit(APP_BACK_ADDRESS);
+      // 阻塞接收 Ymodem 升级文件到备份区
+      size = Ymodem_Receive(ymodem_buf);
       // log_d("app size = %d", size);
       // 将备份区 Flash 的 APP 镜像拷贝到 APP 区
       copy_status_t copy_status = decodeCopy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, size);

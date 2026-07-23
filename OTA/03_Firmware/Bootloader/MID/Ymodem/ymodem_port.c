@@ -2,12 +2,23 @@
  ******************************************************************************
  * @file    ymodem_port.c
  * @brief   Ymodem 协议底层硬件接口实现
- * @note    提供串口收发 和 Flash 操作的硬件抽象层
+ * @note    提供串口收发 和 存储 (Flash) 操作的硬件抽象层。
+ *          存储操作基于偏移量，协议层无需感知绝对地址。
  ******************************************************************************
  */
 
 /* 包含头文件 ----------------------------------------------------------------*/
 #include "ymodem_port.h"
+#include "stm32f4xx.h"
+#include "usart.h"
+#include "flash.h"
+
+/* ============================================================
+ * 模块私有 (static) 变量 — 存储子系统
+ * ============================================================ */
+
+static uint32_t storage_base_addr;   /* 存储写入基准地址 */
+static uint32_t storage_capacity;    /* 从基准地址到存储末尾的容量 (字节) */
 
 /* ============================================================
  * 串口底层实现
@@ -23,7 +34,6 @@
  *         Ymodem 协议通过轮询 + 超时来实现握手机制。
  *         如果改为阻塞等待，协议的超时逻辑将无法工作，
  *         导致升级流程卡死。
- *
  */
 uint32_t SerialKeyPressed(uint8_t *key)
 {
@@ -53,12 +63,38 @@ void SerialPutChar(uint8_t c)
     USART_SendData(USART1, c);
 }
 
+/* ============================================================
+ * 存储抽象层实现
+ * ============================================================ */
+
 /**
- * @brief  擦除指定 Flash 区域
+ * @brief  初始化存储子系统，设置写入基准地址
+ * @param  base_address: 存储写入的起始地址
+ * @note   计算可用容量 = Flash_TotalSize - (base_address - FLASH_BASE)
+ *         内部 Flash 基地址 FLASH_BASE = 0x08000000
  */
-int32_t YmodemPort_FlashErase(uint32_t startAddr, uint32_t size)
+void YmodemPort_StorageInit(uint32_t base_address)
 {
-    if (Erase_Area(startAddr, size) == FLASH_COMPLETE)
+    storage_base_addr = base_address;
+    storage_capacity  = Get_Flash_Size() - (base_address - FLASH_BASE);
+}
+
+/**
+ * @brief  获取从基准地址到存储末尾的可用容量 (字节)
+ */
+uint32_t YmodemPort_GetCapacity(void)
+{
+    return storage_capacity;
+}
+
+/**
+ * @brief  擦除从基准地址开始的指定大小区域
+ * @param  size: 要擦除的字节数 (从 storage_base_addr 开始)
+ * @retval YMODEM_PORT_OK / YMODEM_PORT_ERR
+ */
+int32_t YmodemPort_StorageErase(uint32_t size)
+{
+    if (Erase_Area(storage_base_addr, size) == FLASH_COMPLETE)
     {
         return YMODEM_PORT_OK;
     }
@@ -66,36 +102,40 @@ int32_t YmodemPort_FlashErase(uint32_t startAddr, uint32_t size)
 }
 
 /**
- * @brief  向 Flash 写入一个 Word (4 字节)
+ * @brief  从基准偏移处写入一块数据，并逐 Word 读回校验
+ * @param  offset: 相对于 storage_base_addr 的字节偏移
+ * @param  data:   数据源指针
+ * @param  length: 要写入的字节数 (必须为 4 的倍数)
+ * @retval YMODEM_PORT_OK / YMODEM_PORT_ERR
+ *
+ * @note   逐 Word (4 字节) 写入，每写入一个 Word 立即读回比对。
+ *         若任一 Word 写入或校验失败，立即返回错误。
  */
-int32_t YmodemPort_FlashWriteWord(uint32_t address, uint32_t data)
+int32_t YmodemPort_StorageWrite(uint32_t offset, const uint8_t *data, uint32_t length)
 {
-    if (Program_Word(address, data) == FLASH_COMPLETE)
+    uint32_t addr = storage_base_addr + offset;
+    uint32_t i;
+
+    for (i = 0; i < length; i += 4)
     {
-        return YMODEM_PORT_OK;
+        uint32_t word = *(uint32_t *)(data + i);
+
+        /* 写入一个 Word */
+        if (Program_Word(addr, word) != FLASH_COMPLETE)
+        {
+            return YMODEM_PORT_ERR;
+        }
+
+        /* 读回校验 */
+        if (*(uint32_t *)addr != word)
+        {
+            return YMODEM_PORT_ERR;
+        }
+
+        addr += 4;
     }
-    return YMODEM_PORT_ERR;
-}
 
-/**
- * @brief  校验 Flash 写入结果 (读回比对)
- */
-int32_t YmodemPort_FlashVerify(uint32_t address, uint32_t expected)
-{
-    if (*(uint32_t *)address == expected)
-    {
-        return YMODEM_PORT_OK;
-    }
-    return YMODEM_PORT_ERR;
-}
-
-
-/**
- * @brief  获取 Flash 总大小 (字节)
- */
-uint32_t YmodemPort_GetFlashSize(void)
-{
-    return Get_Flash_Size();
+    return YMODEM_PORT_OK;
 }
 
 
