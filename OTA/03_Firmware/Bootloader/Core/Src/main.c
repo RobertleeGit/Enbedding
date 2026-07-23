@@ -91,13 +91,13 @@ int main(void)
     }
     else  // 按键按下
     {
-      // 初始化 Ymodem 存储目标 (内部 Flash 备份区)
-      YmodemPort_StorageInit(APP_BACK_ADDRESS);
-      // 阻塞接收 Ymodem 升级文件到备份区
+      // 初始化 Ymodem 存储目标 (外部 Flash W25Q64 偏移 0)
+      YmodemPort_StorageInit(EXT_FLASH_BACK_OFFSET);
+      // 阻塞接收 Ymodem 升级文件到外部 Flash
       size = Ymodem_Receive(ymodem_buf);
       // log_d("app size = %d", size);
-      // 将备份区 Flash 的 APP 镜像拷贝到 APP 区
-      copy_status_t copy_status = decodeCopy_back_to_app(APP_BACK_ADDRESS, APP_START_ADDRESS, size);
+      // 从外部 Flash 解密并拷贝固件到内部 Flash APP 区
+      copy_status_t copy_status = decodeCopy_ext_to_app(EXT_FLASH_BACK_OFFSET, APP_START_ADDRESS, size);
       if (copy_status == COPY_SUCCESS)
       {
         log_i("copy back to app success!");

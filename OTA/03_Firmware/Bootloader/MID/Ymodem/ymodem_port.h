@@ -23,6 +23,10 @@
 #define YMODEM_PORT_OK      ( 0)   /* 操作成功 */
 #define YMODEM_PORT_ERR     (-1)   /* 操作失败 */
 
+
+#define FLASH_INTERNAL      0   /* 内部 Flash 存储 (STM32 内部 Flash) */
+#define FLASH_EXTERNAL      1   /* 外部 Flash 存储 (SPI Flash 等) */
+
 /* ============================================================
  * 串口底层接口
  * ============================================================ */

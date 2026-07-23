@@ -67,6 +67,7 @@ void SerialPutChar(uint8_t c)
  * 存储抽象层实现
  * ============================================================ */
 
+#if FLASH_INTERNAL
 /**
  * @brief  初始化存储子系统，设置写入基准地址
  * @param  base_address: 存储写入的起始地址
@@ -137,5 +138,100 @@ int32_t YmodemPort_StorageWrite(uint32_t offset, const uint8_t *data, uint32_t l
 
     return YMODEM_PORT_OK;
 }
+#endif   /* FLASH_INTERNAL */
+
+
+#if FLASH_EXTERNAL
+
+#include "w25q64_handler.h"
+
+/**
+ * @brief  初始化存储子系统，设置写入基准偏移
+ * @param  base_address: 外部 Flash 芯片内部偏移地址 (0 ~ 8MB-1)
+ * @note   计算可用容量 = W25Q64_TotalSize - base_address
+ */
+void YmodemPort_StorageInit(uint32_t base_address)
+{
+    storage_base_addr = base_address;
+    storage_capacity  = W25Q64_Handler_GetSize() - base_address;
+}
+
+/**
+ * @brief  获取从基准偏移到芯片末尾的可用容量 (字节)
+ */
+uint32_t YmodemPort_GetCapacity(void)
+{
+    return storage_capacity;
+}
+
+/**
+ * @brief  擦除从基准偏移开始的指定大小区域
+ * @param  size: 要擦除的字节数 (从 storage_base_addr 开始)
+ * @retval YMODEM_PORT_OK / YMODEM_PORT_ERR
+ * @note   内部按 64KB Block 对齐擦除，由 W25Q64_Handler_Erase 处理
+ */
+int32_t YmodemPort_StorageErase(uint32_t size)
+{
+    if (W25Q64_Handler_Erase(storage_base_addr, size) == W25Q64_HANDLER_OK)
+    {
+        return YMODEM_PORT_OK;
+    }
+    return YMODEM_PORT_ERR;
+}
+
+/**
+ * @brief  从基准偏移处写入一块数据，并读回校验
+ * @param  offset: 相对于 storage_base_addr 的字节偏移
+ * @param  data:   数据源指针
+ * @param  length: 要写入的字节数
+ * @retval YMODEM_PORT_OK / YMODEM_PORT_ERR
+ *
+ * @note   通过 SPI 写入外部 Flash (W25Q64_Handler_Write 内部自动处理页对齐)。
+ *         写入完成后读取整个区域逐字节比对校验，确保数据完整性。
+ *         校验使用 256 字节分块读取以平衡性能与栈空间占用。
+ */
+int32_t YmodemPort_StorageWrite(uint32_t offset, const uint8_t *data, uint32_t length)
+{
+    uint32_t addr = storage_base_addr + offset;
+    uint8_t  verify_buf[256];
+    uint32_t remaining, read_off;
+
+    /* 写入外部 Flash (页编程 + 自动等待完成) */
+    if (W25Q64_Handler_Write(addr, data, length) != W25Q64_HANDLER_OK)
+    {
+        return YMODEM_PORT_ERR;
+    }
+
+    /* 读回逐字节比对校验 */
+    remaining = length;
+    read_off  = 0;
+    while (remaining > 0)
+    {
+        uint32_t chunk = (remaining > sizeof(verify_buf)) ? sizeof(verify_buf) : remaining;
+
+        if (W25Q64_Handler_Read(addr + read_off, verify_buf, chunk) != W25Q64_HANDLER_OK)
+        {
+            return YMODEM_PORT_ERR;
+        }
+
+        for (uint32_t i = 0; i < chunk; i++)
+        {
+            if (verify_buf[i] != data[read_off + i])
+            {
+                return YMODEM_PORT_ERR;
+            }
+        }
+
+        read_off  += chunk;
+        remaining -= chunk;
+    }
+
+    return YMODEM_PORT_OK;
+}
+
+#endif   /* FLASH_EXTERNAL */
+
+
+
 
 

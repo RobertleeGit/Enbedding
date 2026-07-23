@@ -1,4 +1,5 @@
 #include "boot_manage.h"
+#include "w25q64_handler.h"
 
 /**
   * @brief  从 Bootloader 跳转到 APP 应用程序
@@ -144,5 +145,86 @@ copy_status_t decodeCopy_back_to_app(uint32_t back_address, uint32_t app_address
 	}
 
 	return COPY_SUCCESS;
+}
+
+/**
+ * @brief  从外部 Flash (W25Q64) 解密并拷贝固件到内部 Flash APP 区
+ * @note   与 decodeCopy_back_to_app 逻辑相同，区别是：
+ *         - 源数据通过 SPI 从 W25Q64 读取 (W25Q64_Handler_Read)
+ *         - 而非通过内部 Flash 直接地址访问
+ *
+ *         密文格式: 自定义数据长度(4B) + 自定义数据(nB) + 明文长度(4B) + 明文数据(nB) + 填充(PB)
+ *         首 16 字节辅助信息块需先 AES 解密才能获得实际 APP 大小。
+ */
+copy_status_t decodeCopy_ext_to_app(uint32_t ext_offset, uint32_t app_address, int size)
+{
+    uint8_t *pIV_IN_OUT    = IV;
+    uint8_t *pAES_key256   = Key;
+    uint8_t  buffer[16]    = {0x00};
+    uint32_t app_size      = 0;
+
+    /* size 为文件加密后的大小，会多 16 字节的辅助信息 */
+    if (size <= 16 || size > (0x18010 - 1))
+    {
+        return COPY_ERROR;
+    }
+
+    /* 1. 从外部 Flash 读取首 16 字节辅助信息块并解密 */
+    if (W25Q64_Handler_Read(ext_offset, buffer, 16) != W25Q64_HANDLER_OK)
+    {
+        return COPY_ERROR;
+    }
+    Aes_IV_key256bit_Decode(pIV_IN_OUT, buffer, pAES_key256);
+    app_size = buffer[12] | (buffer[13] << 8) | (buffer[14] << 16) | (buffer[15] << 24);
+
+    /* 校验解密出的 app_size */
+    if (app_size == 0 || app_size > (0x18000 - 1))
+    {
+        return COPY_ERROR;
+    }
+
+    /* 2. 擦除内部 Flash APP 区 */
+    if (Erase_Area(app_address, app_size) != FLASH_COMPLETE)
+    {
+        return COPY_ERROR;
+    }
+
+    /* 3. 从外部 Flash 逐块读取 → 解密 → 写入内部 Flash */
+    uint32_t remaining  = app_size;
+    uint32_t src_offset = 16;  /* 跳过 16 字节辅助信息头 */
+
+    while (remaining > 0 && src_offset < (uint32_t)size)
+    {
+        /* 从外部 Flash 读取 16 字节密文块 */
+        if (W25Q64_Handler_Read(ext_offset + src_offset, buffer, 16) != W25Q64_HANDLER_OK)
+        {
+            return COPY_ERROR;
+        }
+
+        Aes_IV_key256bit_Decode(pIV_IN_OUT, buffer, pAES_key256);
+
+        uint32_t *p_word = (uint32_t *)buffer;
+        for (int j = 0; j < 4 && remaining >= 4; j++)
+        {
+            if (Program_Word(app_address, *p_word) != FLASH_COMPLETE)
+            {
+                return COPY_ERROR;
+            }
+
+            /* 读回校验 */
+            if (*(__IO uint32_t *)app_address != *p_word)
+            {
+                return COPY_ERROR;
+            }
+
+            app_address += 4;
+            p_word++;
+            remaining   -= 4;
+        }
+
+        src_offset += 16;
+    }
+
+    return COPY_SUCCESS;
 }
 
