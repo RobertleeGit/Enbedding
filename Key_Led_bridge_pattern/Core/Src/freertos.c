@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bsp_led_driver_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -114,9 +114,27 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
+
+
+  BSP_LED_HandleTypeDef hled;             // LED 操作句柄
+  BSP_LED_HAL_Data_t    halData;          // 用于 HAL 后端存储并管理 LED 状态
+  BSP_LED_HAL_Config_t  cfg = {
+      .port        = LED_GPIO_Port,       // GPIOC
+      .pin         = LED_Pin,             // GPIO_PIN_13
+      .activeLevel = BSP_LED_ACTIVE_LOW,  // PC13 低电平点亮
+      .htim        = NULL,                // 暂无 PWM
+      .timChannel  = 0,
+  };
+
+  BSP_LED_HAL_Init(&hled, &halData, &cfg);
+
   /* Infinite loop */
   for(;;)
   {
+    BSP_LED_On(&hled);                       // 开灯
+    HAL_Delay(1000);                         // 延时 1 秒
+    BSP_LED_Off(&hled);                      // 关灯
+    HAL_Delay(1000);                         // 延时 1 秒
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
