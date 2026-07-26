@@ -24,7 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "bsp_led_driver_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +45,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+BSP_LED_HandleTypeDef     hled;             // LED 操作句柄
+BSP_LED_HAL_Data_t        halData;          // 用于 HAL 后端存储并管理 LED 状态
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -76,7 +77,16 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+ 
+  BSP_LED_HAL_Config_t  cfg = {
+      .port        = LED_GPIO_Port,       // GPIOC
+      .pin         = LED_Pin,             // GPIO_PIN_13
+      .activeLevel = BSP_LED_ACTIVE_LOW,  // PC13 低电平点亮
+      .htim        = NULL,                // 暂无 PWM
+      .timChannel  = 0,
+  };
 
+  BSP_LED_HAL_Init(&hled, &halData, &cfg);
   /* USER CODE END Init */
 
   /* Configure the system clock */

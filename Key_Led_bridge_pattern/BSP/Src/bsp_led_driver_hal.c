@@ -319,3 +319,4 @@ static BSP_LED_Status_t HAL_LED_SetBrightness(BSP_LED_HandleTypeDef *hled,
 
   return BSP_LED_OK;
 }
+
