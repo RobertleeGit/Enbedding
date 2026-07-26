@@ -25,8 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "bsp_led_driver_hal.h"
-#include "led_blink_pattern.h"
+#include "led_manager.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,8 +45,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-extern BSP_LED_HandleTypeDef hled;             // LED 操作句柄
-LED_Blink_Pattern_t blinkObj;
+extern BSP_LED_HandleTypeDef hled;             // LED 操作句柄（main.c 中定义）
+LED_Mgr_LedObj_t ledPool[1];                   // 管理者维护的 LED 对象池（目前 1 个 LED）
+static BSP_OS_QueueHandle_t gNotifyQueue = NULL;  // 闪烁完成通知队列
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -75,11 +75,27 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
   static const BSP_Time_Ops_t timeOps = { .GetTick = MyGetTick, .DelayMs = NULL };
-  LED_Blink_Config_t  cfg = {
-    .cycleMs = 500, .onRatio = 30,        // 500ms 周期，30% 亮
-    .blinkCount = 5, .mode = LED_BLINK_COUNTED  // 闪 5 次后停止
+
+  /* Register LED 0 with the manager's object pool */
+  (void)LED_Mgr_RegisterLed(ledPool,
+                             sizeof(ledPool) / sizeof(ledPool[0]),
+                             0U,
+                             &hled);
+
+  /* Create notification queue for completion callbacks (depth 4 × uint8_t) */
+  gNotifyQueue = BSP_OS_FreeRTOS_GetOps()->QueueCreate(sizeof(uint8_t), 4U);
+
+  /* Initialise the LED manager (creates queue + manager task) */
+  LED_Mgr_Init_t mgrInit = {
+    .pOsOps        = BSP_OS_FreeRTOS_GetOps(),
+    .pTimeOps      = &timeOps,
+    .pLedPool      = ledPool,
+    .ledPoolSize   = sizeof(ledPool) / sizeof(ledPool[0]),
+    .cmdQueueLen   = LED_MGR_CMD_QUEUE_LEN,
+    .ctrlTaskStack = LED_MGR_CTRL_TASK_STACK,
+    .ctrlTaskPrio  = LED_MGR_CTRL_TASK_PRIO,
   };
-  LED_Blink_Init(&blinkObj, &hled, &timeOps, &cfg);
+  LED_Mgr_Init(&mgrInit);
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -122,13 +138,41 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-  LED_Blink_Start(&blinkObj);
+  /* Avoid unused-argument warning */
+  (void)argument;
 
-  /* Infinite loop */
-  for(;;)
+  for (;;)
   {
-    LED_Blink_Tick(&blinkObj);
-    osDelay(1);
+    /*
+     * Step 1: Send a START_BLINK command.
+     *         500 ms cycle, 1:1 (50 %) duty, 5 counted blinks.
+     *         notifyQueue = gNotifyQueue → manager sends ledId back on finish.
+     */
+    LED_Mgr_Cmd_t cmd = {
+      .cmdId       = LED_MGR_CMD_START_BLINK,
+      .ledId       = 0U,
+      .notifyQueue = gNotifyQueue,
+      .data.blinkCfg = {
+        .cycleMs    = 500U,                /* 500 ms period                   */
+        .onRatio    = 50U,                 /* 50 % duty (1:1)                 */
+        .blinkCount = 5U,                  /* 5 blinks then stop              */
+        .mode       = LED_BLINK_COUNTED,
+      },
+    };
+    (void)LED_Mgr_SendCmd(&cmd);
+
+    /*
+     * Step 2: Block until the manager notifies completion.
+     *         The manager's control task sends the ledId via gNotifyQueue
+     *         when the counted-blink pattern finishes.
+     */
+    uint8_t finishedLedId;
+    (void)BSP_OS_FreeRTOS_GetOps()->QueueReceive(gNotifyQueue, &finishedLedId, BSP_OS_WAIT_FOREVER);
+
+    /*
+     * Step 3: Wait 1 s, then loop back to Step 1.
+     */
+    osDelay(1000U);
   }
   /* USER CODE END StartDefaultTask */
 }
