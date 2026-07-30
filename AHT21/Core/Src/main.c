@@ -26,7 +26,8 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include "core_cm4.h"
-#include "iic_hal.h"
+// #include "iic_hal.h"   // iic test
+#include "elog.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,12 +48,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-iic_bus_t AHT_bus = {
-  .IIC_SDA_PORT = GPIOB,
-  .IIC_SDA_PIN = GPIO_PIN_13,
-  .IIC_SCL_PORT = GPIOB,
-  .IIC_SCL_PIN = GPIO_PIN_14,
-};
+
+// iic_bus_t AHT_bus = {
+//   .IIC_SDA_PORT = GPIOB,
+//   .IIC_SDA_PIN = GPIO_PIN_13,
+//   .IIC_SCL_PORT = GPIOB,
+//   .IIC_SCL_PIN = GPIO_PIN_14,
+// };
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -86,6 +89,23 @@ void delay_ms(uint32_t ms)
   
   while ((DWT->CYCCNT - start) < tick);  
 }
+
+void EasyLogger_Init(void)
+{
+  // 初始化 elog
+  elog_init();
+  // 使能文字颜色
+  elog_set_text_color_enabled(true);
+  // 设置日志格式
+  elog_set_fmt(ELOG_LVL_ASSERT, ELOG_FMT_ALL & ~(ELOG_FMT_P_INFO | ELOG_FMT_T_INFO | ELOG_FMT_TIME));
+  elog_set_fmt(ELOG_LVL_ERROR, ELOG_FMT_ALL& ~(ELOG_FMT_P_INFO | ELOG_FMT_T_INFO | ELOG_FMT_TIME));
+  elog_set_fmt(ELOG_LVL_WARN, ELOG_FMT_ALL & ~(ELOG_FMT_P_INFO | ELOG_FMT_T_INFO | ELOG_FMT_TIME));
+  elog_set_fmt(ELOG_LVL_INFO, ELOG_FMT_ALL & ~(ELOG_FMT_P_INFO | ELOG_FMT_T_INFO | ELOG_FMT_TIME));
+  elog_set_fmt(ELOG_LVL_DEBUG, ELOG_FMT_ALL & ~(ELOG_FMT_P_INFO | ELOG_FMT_T_INFO | ELOG_FMT_TIME));
+  elog_set_fmt(ELOG_LVL_VERBOSE, ELOG_FMT_ALL & ~(ELOG_FMT_P_INFO | ELOG_FMT_T_INFO | ELOG_FMT_TIME));
+  // 开启日志
+  elog_start();
+}
 /* USER CODE END 0 */
 
 /**
@@ -111,8 +131,9 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
+  EasyLogger_Init();
   dwt_delay_init();
-  IICInit(&AHT_bus);
+  // IICInit(&AHT_bus);       // iic test
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -120,13 +141,12 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   printf("hello world\r\n");
-  printf("SystemCoreClock = %d \r\n", SystemCoreClock);
 
-  // IIC 测试
-  IICStart(&AHT_bus);
-  IICSendByte(&AHT_bus, 0x70);
-  IICWaitAck(&AHT_bus);
-  IICStop(&AHT_bus);
+  // // IIC test
+  // IICStart(&AHT_bus);
+  // IICSendByte(&AHT_bus, 0x70);
+  // IICWaitAck(&AHT_bus);
+  // IICStop(&AHT_bus);
   
   /* USER CODE END 2 */
 
