@@ -24,7 +24,7 @@
 
 #define AHT21_READ_ADD                      0x71            // read address
 #define AHT21_WRITE_ADD                     0x70            // write address
-#define AHT21_MAX_WAITTING_TIME             80              // Max waitting time 80 ms
+#define AHT21_MEASURE_READY_TIME            80              // AHT21 need 80ms measuring
 
 // AHT21 command
 #define AHT21_CMD_INIT                      0xBE            // initialized cmd

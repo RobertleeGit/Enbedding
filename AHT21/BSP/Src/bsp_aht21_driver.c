@@ -152,14 +152,13 @@ aht21_status_t aht21_read_status(bsp_aht21_driver_t * const aht21_instance, uint
 
 
     aht21_status_t ret = AHT21_OK;
-
 #ifdef SOFTWARE_IIC
     aht21_instance->p_iic_driver_interface->pf_critical_enter();      // Enter critical
 #endif
     // Send IIC start signal
     aht21_instance->p_iic_driver_interface->pf_iic_start();
     // Send read address to read status byte
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_READ_ADD);   
+    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_READ_ADD);  
     // Waiting ack 
     ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
     if (AHT21_OK != ret)
@@ -225,8 +224,8 @@ static aht21_status_t aht21_read_raw_data (bsp_aht21_driver_t * const aht21_inst
 
     check_param(IS_VAILD(aht21_instance));
     check_param(IS_VAILD(aht21_instance->p_iic_driver_interface));
-    check_param(IS_IIC_INITED(aht21_instance));
     check_param(IS_VAILD(raw_data));
+    check_param(IS_IIC_INITED(aht21_instance));
 
 #ifdef SOFTWARE_IIC
     aht21_instance->p_iic_driver_interface->pf_critical_enter();
@@ -257,7 +256,7 @@ static aht21_status_t aht21_read_raw_data (bsp_aht21_driver_t * const aht21_inst
 #endif
 
     /* --- 2. Wait 80ms for measurement to complete --- */
-    aht21_delay_ms(aht21_instance, AHT21_MAX_WAITTING_TIME);
+    aht21_delay_ms(aht21_instance, AHT21_MEASURE_READY_TIME);
 
 #ifdef SOFTWARE_IIC
     aht21_instance->p_iic_driver_interface->pf_critical_enter();
@@ -327,7 +326,7 @@ exit_err:
 }
 
 /** 
- * @brief Initialize the AHT21 
+ * @brief Initialize the AHT21 (hardware)
  * 
  * @param[in] aht21_instance: Const pointer to the bsp_aht21_driver_t
  * 
@@ -351,10 +350,9 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const aht21_instance )
 #ifdef DEBUG
     log_d("AHT21 init start");
 #endif
-
+	
     /* 1. Init IIC */
     aht21_instance->p_iic_driver_interface->pf_iic_init();
-
     /* 2. Power-up delay: 40ms for sensor to be ready */
     aht21_delay_ms(aht21_instance, 40);
 
@@ -367,8 +365,8 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const aht21_instance )
 #endif
         return ret;
     }
-
-    if (!(status_byte & 0x08))  // Bit[3] CAL Enable = 0 -> not calibrated
+    // Bit[3] CAL Enable = 0 -> not calibrated, then init aht21
+    if (!(status_byte & 0x08))  
     {
 #ifdef DEBUG
         log_d("AHT21 not calibrated, sending init cmd");
@@ -449,9 +447,8 @@ static aht21_status_t aht21_deinit (bsp_aht21_driver_t * const aht21_instance )
  * @param[in]  aht21_instance: AHT21 driver instance
  * @param[out] temp: Output temperature in degrees Celsius
  * 
- * @note Per manual section 6.2:
- *          ST = raw temperature 20-bit value
- *          T[℃] = (ST / 2^20) * 200 - 50
+ * @note ST = raw temperature 20-bit value
+ *       T[℃] = (ST / 2^20) * 200 - 50
  * 
  * @return aht21_status_t
  */
@@ -537,7 +534,7 @@ static aht21_status_t aht21_read_humidity (bsp_aht21_driver_t * const aht21_inst
 
 
 /** 
- * @brief Software reset AHT21 (per manual section 5.5).
+ * @brief Software reset AHT21.
  * 
  * @param[in] aht21_instance: AHT21 driver instance
  * 
@@ -677,7 +674,7 @@ static aht21_status_t aht21_wakeup (bsp_aht21_driver_t * const aht21_instance)
 #endif
 
     /* Wait for measurement to complete */
-    aht21_delay_ms(aht21_instance, AHT21_MAX_WAITTING_TIME);
+    aht21_delay_ms(aht21_instance, AHT21_MEASURE_READY_TIME);
 
     return AHT21_OK;
 

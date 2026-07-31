@@ -1,5 +1,6 @@
 #include "iic_hal.h"
 
+#include <stdio.h>
 
 /**
   * @brief SDA线输入模式配置
@@ -96,7 +97,7 @@ void IICStart(iic_bus_t *bus)
     SDA_Output(bus,0);
 		delay_us(1);
     SCL_Output(bus,0);
-		delay_us(1);
+		delay_us(1);	
 }
 
 /**

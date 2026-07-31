@@ -78,8 +78,10 @@ void delay_us(uint32_t us)
 {
   uint32_t start = DWT->CYCCNT;
   uint32_t tick = us * (SystemCoreClock / 1000000);
-  
-  while ((DWT->CYCCNT - start) < tick);  
+  // printf("can runing here\r\n");		
+  // 直接下载代码时会卡死在下代码，按下复位键或开启调试或开启上位机 RTT 可以成功运行
+  while ((DWT->CYCCNT - start) < tick);
+  // printf("can not runing here\r\n");
 }
 
 void delay_ms(uint32_t ms)

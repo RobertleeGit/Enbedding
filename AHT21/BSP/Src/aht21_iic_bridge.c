@@ -5,7 +5,7 @@
  * @par aht21_iic_bridge.h
  *
  * @brief This file implements the ::iic_driver_interface_t (software iic) 
- *        interface using the iic_hal functions. you can implements by you 
+ *        interface using the iic_hal functions. you can implements by your 
  *        own implement functions.
  * 
  * @version V1.0.0
@@ -16,8 +16,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "aht21_iic_bridge.h"
+
+#ifdef OS_SUPPORTING
+// add your own OS header file
 #include "FreeRTOS.h"
 #include "task.h"
+
+#endif
 
 /* Defines -------------------------------------------------------------------*/
 
@@ -41,7 +46,7 @@ static aht21_status_t iic_critical_exit (void);
 #endif
 
 /* Private variables ---------------------------------------------------------*/
-
+// Only one AHT21 (singleton design) can be used
 static iic_bus_t* AHT21_bus;
 
 // iic_driver_interface_t interface function table
@@ -69,7 +74,7 @@ static const iic_driver_interface_t iic_driver = {
  * 
  *  @param[in] aht21_bus: Pointer to iic_bus_t
  * 
- *  @return iic_driver_interface_t*
+ *  @return return the function table
  */
 iic_driver_interface_t* IIC_Drive_Interface_Init (iic_bus_t *aht21_bus)
 {

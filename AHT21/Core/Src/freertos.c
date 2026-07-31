@@ -44,6 +44,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+
 /* Timebase interface: get system tick count in ms */
 static uint32_t aht21_timebase_get_tick(void)
 {
@@ -62,14 +63,14 @@ static uint32_t aht21_rtos_yield(const uint32_t ms)
 
 /* USER CODE BEGIN Variables */
 
-osThreadId_t defaultTaskHandle;
+osThreadId_t aht21TaskHandle;
 const osThreadAttr_t aht21Task_attributes = {
     .name = "AHT21Task",
     .stack_size = 256 * 4,
     .priority = (osPriority_t)osPriorityNormal,
 };
 
-// IIC bus instance
+// IIC bus instance to create IIC driver instance
 static iic_bus_t AHT_bus = {
     .IIC_SDA_PORT = GPIOB,
     .IIC_SDA_PIN = GPIO_PIN_13,
@@ -80,10 +81,12 @@ static iic_bus_t AHT_bus = {
 // AHT21 driver instance
 static bsp_aht21_driver_t aht21_drv;
 
+// Timbase instance
 static timebase_interface_t aht21_timebase = {
     .pf_get_tick_count = aht21_timebase_get_tick,
 };
 
+// OS yield instance
 static yield_interface_t aht21_yield = {
     .pf_rtos_yield = aht21_rtos_yield,
 };
@@ -143,7 +146,7 @@ void MX_FREERTOS_Init(void)
 
   /* Create AHT21 sensor task */
 
-  osThreadNew(AHT21_Task, NULL, &aht21Task_attributes);
+  aht21TaskHandle = osThreadNew(AHT21_Task, NULL, &aht21Task_attributes);
 
   /* USER CODE END RTOS_THREADS */
 
@@ -180,6 +183,7 @@ void StartDefaultTask(void *argument)
  */
 void AHT21_Task(void *argument)
 {
+
   aht21_status_t ret;
   iic_driver_interface_t *p_iic_interface;
 
