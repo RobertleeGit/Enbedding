@@ -212,13 +212,14 @@ void AHT21_Task(void *argument)
     return;
   }
 
-  HAL_Delay(100);
-
   log_i("AHT21 initialized successfully, starting measurement loop");
 
   /* 4: Continuous measurement loop */
   for (;;)
   {
+    /* Delay 1 second between measurements (per manual recommendation) */
+    osDelay(1000);
+
     float temperature = 0.0f;
     float humidity = 0.0f;
 
@@ -244,8 +245,7 @@ void AHT21_Task(void *argument)
       printf("AHT21: Read failed (%d)\r\n", (int)ret);
     }
 
-    /* Delay 1 second between measurements (per manual recommendation) */
-    osDelay(1000);
+
   }
 }
 

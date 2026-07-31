@@ -17,7 +17,7 @@
 #include "elog.h"
 
 /* Defines -------------------------------------------------------------------*/
-// #define DEBUG                                   // Open debug code
+#define DEBUG                                   // Open debug code
 
 #define check_param(expr)                           \
     do {                                            \
