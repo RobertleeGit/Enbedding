@@ -19,10 +19,11 @@
 
 
 /** 
- *  @brief  initialize the iic_driver_interface_t interface function table
+ *  @brief  Initialize a per-instance iic_driver_interface_t function table.
+ *          Each call fills a separate struct, enabling multiple AHT21 sensors
+ *          on different IIC buses to coexist.
  * 
- *  @param[in] aht21_bus: Pointer to iic_bus_t
- * 
- *  @return iic_driver_interface_t*
+ *  @param[out] p_interface: Pointer to caller-allocated iic_driver_interface_t
+ *  @param[in]  aht21_bus:   Pointer to iic_bus_t (bus GPIO configuration)
  */
-iic_driver_interface_t* IIC_Drive_Interface_Init (iic_bus_t *aht21_bus);
+void IIC_Drive_Interface_Init (iic_driver_interface_t *p_interface, iic_bus_t *aht21_bus);

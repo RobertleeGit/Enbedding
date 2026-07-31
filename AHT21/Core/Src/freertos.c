@@ -22,6 +22,7 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
+#include "queue.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -80,6 +81,9 @@ static iic_bus_t AHT_bus = {
 
 // AHT21 driver instance
 static bsp_aht21_driver_t aht21_drv;
+
+// IIC driver interface instance
+static iic_driver_interface_t aht21_iic_interface;
 
 // Timbase instance
 static timebase_interface_t aht21_timebase = {
@@ -185,21 +189,14 @@ void AHT21_Task(void *argument)
 {
 
   aht21_status_t ret;
-  iic_driver_interface_t *p_iic_interface;
 
   log_i("AHT21 Task started");
 
-  /* 1: Initialize IIC bridge with bus configuration */
-  p_iic_interface = IIC_Drive_Interface_Init(&AHT_bus);
-  if (p_iic_interface == NULL)
-  {
-    log_e("AHT21 IIC bridge init failed");
-    osThreadExit();
-    return;
-  }
+  /* 1: Initialize IIC bridge with bus configuration (per-instance, reentrant) */
+  IIC_Drive_Interface_Init(&aht21_iic_interface, &AHT_bus);
 
   /* 2: Create AHT21 driver instance */
-  ret = aht21_create(&aht21_drv, p_iic_interface, &aht21_timebase, &aht21_yield);
+  ret = aht21_create(&aht21_drv, &aht21_iic_interface, &aht21_timebase, &aht21_yield);
   if (AHT21_OK != ret)
   {
     log_e("AHT21 driver create failed: %d", (int)ret);

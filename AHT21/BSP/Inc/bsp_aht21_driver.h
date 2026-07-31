@@ -3,6 +3,7 @@
  * @file bsp_aht21_driver.h
  *
  * @par stdint.h
+ *      stdio.h
  *
  * @brief Provide the HAL APIs of AHT21 and corresponding opetions.
  *
@@ -65,19 +66,21 @@ typedef enum
 /* AHT21 software IIC interface structures definition  */
 typedef struct
 {
-    aht21_status_t (*pf_iic_init)(void);                    /* IIC init interface           */
-    aht21_status_t (*pf_iic_deinit)(void);                  /* IIC deinit interface         */
-    aht21_status_t (*pf_iic_start)(void);                   /* IIC start signal interface   */
-    aht21_status_t (*pf_iic_stop)(void);                    /* IIC stop signal interface    */
-    aht21_status_t (*pf_iic_send_byte)(uint8_t);            /* IIC send byte interface      */
-    aht21_status_t (*pf_iic_receive_byte)(uint8_t *);       /* IIC receive byte interface   */
-    aht21_status_t (*pf_iic_send_ack)(void);                /* IIC wait ack interface       */
-    aht21_status_t (*pf_iic_send_no_ack)(void);             /* IIC Init interface           */
-    aht21_status_t (*pf_iic_wait_ack)(void);                /* IIC wait ack interface       */
+    void *context;                                          /* User context pointer (e.g. iic_bus_t*) */
+
+    aht21_status_t (*pf_iic_init)(void *ctx);               /* IIC init interface           */
+    aht21_status_t (*pf_iic_deinit)(void *ctx);             /* IIC deinit interface         */
+    aht21_status_t (*pf_iic_start)(void *ctx);              /* IIC start signal interface   */
+    aht21_status_t (*pf_iic_stop)(void *ctx);               /* IIC stop signal interface    */
+    aht21_status_t (*pf_iic_send_byte)(void *ctx, uint8_t byte);       /* IIC send byte interface      */
+    aht21_status_t (*pf_iic_receive_byte)(void *ctx, uint8_t *byte);   /* IIC receive byte interface   */
+    aht21_status_t (*pf_iic_send_ack)(void *ctx);           /* IIC wait ack interface       */
+    aht21_status_t (*pf_iic_send_no_ack)(void *ctx);        /* IIC Init interface           */
+    aht21_status_t (*pf_iic_wait_ack)(void *ctx);           /* IIC wait ack interface       */
 
 #ifdef OS_SUPPORTING
-    aht21_status_t (*pf_critical_enter)(void);              /* IIC enter critical state     */
-    aht21_status_t (*pf_critical_exit)(void);               /* IIC exit critical state      */
+    aht21_status_t (*pf_critical_enter)(void *ctx);         /* IIC enter critical state     */
+    aht21_status_t (*pf_critical_exit)(void *ctx);          /* IIC exit critical state      */
 #endif
 } iic_driver_interface_t;
 
@@ -88,12 +91,14 @@ typedef struct
 /* AHT21 hardware IIC interface structures definition  */
 typedef struct
 {
-    aht21_status_t (*pf_iic_init)(void);         /* IIC init interface           */
-    aht21_status_t (*pf_iic_deinit)(void);       /* IIC deinit interface         */
-    aht21_status_t (*pf_iic_send_byte)(void);    /* IIC send byte interface      */
-    aht21_status_t (*pf_iic_receive_byte)(void); /* IIC receive byte interface   */
-    aht21_status_t (*pf_iic_send_ack)(void);     /* IIC wait ack interface       */
-    aht21_status_t (*pf_iic_send_no_ack)(void);  /* IIC Init interface           */
+    void *context;                                          /* User context pointer */
+
+    aht21_status_t (*pf_iic_init)(void *ctx);               /* IIC init interface           */
+    aht21_status_t (*pf_iic_deinit)(void *ctx);             /* IIC deinit interface         */
+    aht21_status_t (*pf_iic_send_byte)(void *ctx, uint8_t byte);    /* IIC send byte interface      */
+    aht21_status_t (*pf_iic_receive_byte)(void *ctx, uint8_t *byte);/* IIC receive byte interface   */
+    aht21_status_t (*pf_iic_send_ack)(void *ctx);           /* IIC wait ack interface       */
+    aht21_status_t (*pf_iic_send_no_ack)(void *ctx);        /* IIC Init interface           */
 
 } iic_driver_interface_t;
 

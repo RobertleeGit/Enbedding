@@ -28,58 +28,53 @@
 
 /* Private functions prototypes ----------------------------------------------*/
 
-static aht21_status_t iic_init (void);
-static aht21_status_t iic_deinit (void);
-static aht21_status_t iic_start (void);
-static aht21_status_t iic_stop (void);
-static aht21_status_t iic_send_byte (uint8_t byte);
-static aht21_status_t iic_receive_byte (uint8_t *byte);
-static aht21_status_t iic_send_ack (void);
-static aht21_status_t iic_send_no_ack (void);
-static aht21_status_t iic_wait_ack (void);
+static aht21_status_t iic_init (void *ctx);
+static aht21_status_t iic_deinit (void *ctx);
+static aht21_status_t iic_start (void *ctx);
+static aht21_status_t iic_stop (void *ctx);
+static aht21_status_t iic_send_byte (void *ctx, uint8_t byte);
+static aht21_status_t iic_receive_byte (void *ctx, uint8_t *byte);
+static aht21_status_t iic_send_ack (void *ctx);
+static aht21_status_t iic_send_no_ack (void *ctx);
+static aht21_status_t iic_wait_ack (void *ctx);
 
 #ifdef OS_SUPPORTING
 
-static aht21_status_t iic_critical_enter (void);
-static aht21_status_t iic_critical_exit (void);
+static aht21_status_t iic_critical_enter (void *ctx);
+static aht21_status_t iic_critical_exit (void *ctx);
 
 #endif
 
 /* Private variables ---------------------------------------------------------*/
-// Only one AHT21 (singleton design) can be used
-static iic_bus_t* AHT21_bus;
-
-// iic_driver_interface_t interface function table
-static const iic_driver_interface_t iic_driver = {
-    .pf_iic_init = iic_init,
-    .pf_iic_deinit = iic_deinit,
-    .pf_iic_start = iic_start,
-    .pf_iic_stop = iic_stop,
-    .pf_iic_send_byte = iic_send_byte,
-    .pf_iic_receive_byte = iic_receive_byte,
-    .pf_iic_send_ack = iic_send_ack,
-    .pf_iic_send_no_ack = iic_send_no_ack,
-    .pf_iic_wait_ack = iic_wait_ack,
-#ifdef OS_SUPPORTING
-    .pf_critical_enter = iic_critical_enter,
-    .pf_critical_exit = iic_critical_exit,
-#endif
-};
 
 /* Exported functions ---------------------------------------------------------*/
 
 
 /** 
- *  @brief  initialize the iic_driver_interface_t interface function table
+ *  @brief  Initialize a per-instance iic_driver_interface_t function table.
+ *          Each call fills a separate struct — no global singleton, fully
+ *          reentrant for multiple AHT21 / multiple IIC buses.
  * 
- *  @param[in] aht21_bus: Pointer to iic_bus_t
- * 
- *  @return return the function table
+ *  @param[out] p_interface: Pointer to caller-allocated iic_driver_interface_t
+ *  @param[in]  aht21_bus:   Pointer to iic_bus_t (bus GPIO configuration)
  */
-iic_driver_interface_t* IIC_Drive_Interface_Init (iic_bus_t *aht21_bus)
+void IIC_Drive_Interface_Init (iic_driver_interface_t *p_interface, iic_bus_t *aht21_bus)
 {
-    AHT21_bus = aht21_bus;
-    return (iic_driver_interface_t*) &iic_driver;
+    p_interface->context = aht21_bus;
+
+    p_interface->pf_iic_init        = iic_init;
+    p_interface->pf_iic_deinit      = iic_deinit;
+    p_interface->pf_iic_start       = iic_start;
+    p_interface->pf_iic_stop        = iic_stop;
+    p_interface->pf_iic_send_byte   = iic_send_byte;
+    p_interface->pf_iic_receive_byte = iic_receive_byte;
+    p_interface->pf_iic_send_ack    = iic_send_ack;
+    p_interface->pf_iic_send_no_ack = iic_send_no_ack;
+    p_interface->pf_iic_wait_ack    = iic_wait_ack;
+#ifdef OS_SUPPORTING
+    p_interface->pf_critical_enter  = iic_critical_enter;
+    p_interface->pf_critical_exit   = iic_critical_exit;
+#endif
 }
 
 
@@ -89,40 +84,41 @@ iic_driver_interface_t* IIC_Drive_Interface_Init (iic_bus_t *aht21_bus)
 /** 
  *  @brief  IIC init interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_init (void)
+static aht21_status_t iic_init (void *ctx)
 {
-    IICInit(AHT21_bus);
+    IICInit((iic_bus_t *)ctx);
     return AHT21_OK;
 }
 
 /** 
  *  @brief  IIC deinit interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_deinit (void)
+static aht21_status_t iic_deinit (void *ctx)
 {
-    HAL_GPIO_DeInit(AHT21_bus->IIC_SDA_PORT, AHT21_bus->IIC_SDA_PIN);
-    HAL_GPIO_DeInit(AHT21_bus->IIC_SCL_PORT, AHT21_bus->IIC_SCL_PIN);
+    iic_bus_t *bus = (iic_bus_t *)ctx;
+    HAL_GPIO_DeInit(bus->IIC_SDA_PORT, bus->IIC_SDA_PIN);
+    HAL_GPIO_DeInit(bus->IIC_SCL_PORT, bus->IIC_SCL_PIN);
     return AHT21_OK;
 }
 
 /** 
  *  @brief  IIC start interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_start (void)
+static aht21_status_t iic_start (void *ctx)
 {
-    IICStart(AHT21_bus);
+    IICStart((iic_bus_t *)ctx);
     return AHT21_OK;
 }
 
@@ -130,40 +126,40 @@ static aht21_status_t iic_start (void)
 /** 
  *  @brief  IIC stop interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_stop (void)
+static aht21_status_t iic_stop (void *ctx)
 {
-    IICStop(AHT21_bus);
+    IICStop((iic_bus_t *)ctx);
     return AHT21_OK;
 }
 
 
 /** 
- *  @brief  IIC stop interface
+ *  @brief  IIC send byte interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx:  Pointer to iic_bus_t context
  *  @param[in] byte: send data
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_send_byte (uint8_t byte)
+static aht21_status_t iic_send_byte (void *ctx, uint8_t byte)
 {
-    IICSendByte(AHT21_bus, byte);
+    IICSendByte((iic_bus_t *)ctx, byte);
     return AHT21_OK;
 }
 
 /** 
  *  @brief  IIC receive byte interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in]  ctx:  Pointer to iic_bus_t context
  *  @param[out] byte: receive data
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_receive_byte (uint8_t *byte)
+static aht21_status_t iic_receive_byte (void *ctx, uint8_t *byte)
 {
     
     if (byte == NULL)
@@ -171,33 +167,33 @@ static aht21_status_t iic_receive_byte (uint8_t *byte)
         return AHT21_ERROR_PARAMETER;
     }
     
-    *byte = IICReceiveByte(AHT21_bus);
+    *byte = IICReceiveByte((iic_bus_t *)ctx);
     return AHT21_OK;
 }
 
 /** 
  *  @brief  IIC send ack interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_send_ack (void)
+static aht21_status_t iic_send_ack (void *ctx)
 {
-    IICSendAck(AHT21_bus);
+    IICSendAck((iic_bus_t *)ctx);
     return AHT21_OK;
 }
 
 /** 
  *  @brief  IIC send no ack interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_send_no_ack (void)
+static aht21_status_t iic_send_no_ack (void *ctx)
 {
-    IICSendNotAck(AHT21_bus);
+    IICSendNotAck((iic_bus_t *)ctx);
     return AHT21_OK;
 }
 
@@ -205,14 +201,14 @@ static aht21_status_t iic_send_no_ack (void)
 /** 
  *  @brief  IIC wait ack interface
  * 
- *  @param[in] ctx: Pointer to context
+ *  @param[in] ctx: Pointer to iic_bus_t context
  * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_wait_ack (void)
+static aht21_status_t iic_wait_ack (void *ctx)
 {
     
-    if (IICWaitAck(AHT21_bus))
+    if (IICWaitAck((iic_bus_t *)ctx))
     {
         return AHT21_ERROR_TIMEOUT;
     }
@@ -226,10 +222,13 @@ static aht21_status_t iic_wait_ack (void)
 /** 
  *  @brief  Software IIC enter critical
  * 
+ *  @param[in] ctx: Unused (kept for interface consistency)
+ * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_critical_enter (void)
+static aht21_status_t iic_critical_enter (void *ctx)
 {
+    (void)ctx;  /* unused */
     taskENTER_CRITICAL();
     return AHT21_OK;
 }
@@ -237,10 +236,13 @@ static aht21_status_t iic_critical_enter (void)
 /** 
  *  @brief  Software IIC exit critical
  * 
+ *  @param[in] ctx: Unused (kept for interface consistency)
+ * 
  *  @return aht21_status_t
  */
-static aht21_status_t iic_critical_exit (void)
+static aht21_status_t iic_critical_exit (void *ctx)
 {
+    (void)ctx;  /* unused */
     taskEXIT_CRITICAL();
     return AHT21_OK;
 }

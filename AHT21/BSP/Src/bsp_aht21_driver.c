@@ -28,6 +28,7 @@
 
 #define IS_VAILD(PARAM)     (PARAM == NULL)
 #define IS_IIC_INITED(INSTANCE) ((INSTANCE)->iic_inited_status != AHT21_INITED)
+#define IIC_CONTEXT(AHT21_INSTANCE)    AHT21_INSTANCE->p_iic_driver_interface->context
 
 /* Private variables ---------------------------------------------------------*/
 
@@ -153,29 +154,37 @@ aht21_status_t aht21_read_status(bsp_aht21_driver_t * const aht21_instance, uint
 
     aht21_status_t ret = AHT21_OK;
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_enter();      // Enter critical
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_enter(IIC_CONTEXT(aht21_instance));      // Enter critical
 #endif
     // Send IIC start signal
-    aht21_instance->p_iic_driver_interface->pf_iic_start();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_start(IIC_CONTEXT(aht21_instance));
     // Send read address to read status byte
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_READ_ADD);  
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_READ_ADD);  
     // Waiting ack 
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret)
     {
         return ret;
     }
     // Receive status byte
-    aht21_instance->p_iic_driver_interface->pf_iic_receive_byte(status_byte);
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_receive_byte(IIC_CONTEXT(aht21_instance), status_byte);
 
     // Send no ack signal from master to slave
-    aht21_instance->p_iic_driver_interface->pf_iic_send_no_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_no_ack(IIC_CONTEXT(aht21_instance));
     
     // Send the stop signal
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();      // Exit critical
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));      // Exit critical
 #endif
 
 #ifdef DEBUG
@@ -228,66 +237,87 @@ static aht21_status_t aht21_read_raw_data (bsp_aht21_driver_t * const aht21_inst
     check_param(IS_IIC_INITED(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_enter();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_enter(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* --- 1. Send trigger measurement command: 0xAC + 0x33 + 0x00 --- */
-    aht21_instance->p_iic_driver_interface->pf_iic_start();
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_WRITE_ADD);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_start(IIC_CONTEXT(aht21_instance));
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_WRITE_ADD);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto exit_err; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_CMD_TRIGGER_MEASUREMENT);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_CMD_TRIGGER_MEASUREMENT);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto exit_err; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(0x33);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), 0x33);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto exit_err; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(0x00);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), 0x00);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto exit_err; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* --- 2. Wait 80ms for measurement to complete --- */
     aht21_delay_ms(aht21_instance, AHT21_MEASURE_READY_TIME);
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_enter();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_enter(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* --- 3 & 4. Read measurement results --- */
-    aht21_instance->p_iic_driver_interface->pf_iic_start();
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_READ_ADD);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_start(IIC_CONTEXT(aht21_instance));
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_READ_ADD);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto exit_err; }
 
     // Read status byte + 6 data bytes (ACK each), then 1 CRC byte (NAK)
     for (uint8_t i = 0; i < 7; i++)
     {
-        ret = aht21_instance->p_iic_driver_interface->pf_iic_receive_byte(&buf[i]);
+        ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_receive_byte(IIC_CONTEXT(aht21_instance), &buf[i]);
         if (AHT21_OK != ret) { goto exit_err; }
         
         if (i < 6)
         {
-            aht21_instance->p_iic_driver_interface->pf_iic_send_ack();
+            aht21_instance->p_iic_driver_interface->
+                            pf_iic_send_ack(IIC_CONTEXT(aht21_instance));
         }
         else
         {
-            aht21_instance->p_iic_driver_interface->pf_iic_send_no_ack();
+            aht21_instance->p_iic_driver_interface->
+                            pf_iic_send_no_ack(IIC_CONTEXT(aht21_instance));
         }
     }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* --- 5. Verify CRC (over status + first 6 data bytes) --- */
@@ -318,9 +348,11 @@ static aht21_status_t aht21_read_raw_data (bsp_aht21_driver_t * const aht21_inst
     return AHT21_OK;
 
 exit_err:
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
     return ret;
 }
@@ -352,7 +384,8 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const aht21_instance )
 #endif
 	
     /* 1. Init IIC */
-    aht21_instance->p_iic_driver_interface->pf_iic_init();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_init(IIC_CONTEXT(aht21_instance));
     /* 2. Power-up delay: 40ms for sensor to be ready */
     aht21_delay_ms(aht21_instance, 40);
 
@@ -373,31 +406,43 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const aht21_instance )
 #endif
 
 #ifdef SOFTWARE_IIC
-        aht21_instance->p_iic_driver_interface->pf_critical_enter();
+        aht21_instance->p_iic_driver_interface->
+                        pf_critical_enter(IIC_CONTEXT(aht21_instance));
 #endif
 
         /* Send init command 0xBE with params 0x08, 0x00 */
-        aht21_instance->p_iic_driver_interface->pf_iic_start();
-        aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_WRITE_ADD);
-        ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+        aht21_instance->p_iic_driver_interface->
+                        pf_iic_start(IIC_CONTEXT(aht21_instance));
+        aht21_instance->p_iic_driver_interface->
+                        pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_WRITE_ADD);
+        ret = aht21_instance->p_iic_driver_interface->
+                        pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
         if (AHT21_OK != ret) { goto init_exit; }
 
-        aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_CMD_INIT);
-        ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+        aht21_instance->p_iic_driver_interface->
+                        pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_CMD_INIT);
+        ret = aht21_instance->p_iic_driver_interface->
+                        pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
         if (AHT21_OK != ret) { goto init_exit; }
 
-        aht21_instance->p_iic_driver_interface->pf_iic_send_byte(0x08);
-        ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+        aht21_instance->p_iic_driver_interface->
+                        pf_iic_send_byte(IIC_CONTEXT(aht21_instance), 0x08);
+        ret = aht21_instance->p_iic_driver_interface->
+                        pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
         if (AHT21_OK != ret) { goto init_exit; }
 
-        aht21_instance->p_iic_driver_interface->pf_iic_send_byte(0x00);
-        ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+        aht21_instance->p_iic_driver_interface->
+                        pf_iic_send_byte(IIC_CONTEXT(aht21_instance), 0x00);
+        ret = aht21_instance->p_iic_driver_interface->
+                        pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
         if (AHT21_OK != ret) { goto init_exit; }
 
-        aht21_instance->p_iic_driver_interface->pf_iic_stop();
+        aht21_instance->p_iic_driver_interface->
+                        pf_iic_stop(IIC_CONTEXT(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-        aht21_instance->p_iic_driver_interface->pf_critical_exit();
+        aht21_instance->p_iic_driver_interface->
+                        pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* 4. Wait 10ms for initialization to complete */
@@ -414,9 +459,11 @@ static aht21_status_t aht21_init (bsp_aht21_driver_t * const aht21_instance )
     return AHT21_OK;
 
 init_exit:
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
     return ret;
 }
@@ -435,7 +482,8 @@ static aht21_status_t aht21_deinit (bsp_aht21_driver_t * const aht21_instance )
     check_param(IS_VAILD(aht21_instance));
     check_param(IS_VAILD(aht21_instance->p_iic_driver_interface));
 
-    aht21_instance->p_iic_driver_interface->pf_iic_deinit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_deinit(IIC_CONTEXT(aht21_instance));
     aht21_instance->iic_inited_status = AHT21_NOT_INITED;
 
     return AHT21_OK;
@@ -551,22 +599,30 @@ static aht21_status_t aht21_reset (bsp_aht21_driver_t * const aht21_instance )
     check_param(IS_IIC_INITED(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_enter();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_enter(IIC_CONTEXT(aht21_instance));
 #endif
 
-    aht21_instance->p_iic_driver_interface->pf_iic_start();
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_WRITE_ADD);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_start(IIC_CONTEXT(aht21_instance));
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_WRITE_ADD);
+    ret = aht21_instance->p_iic_driver_interface->
+                          pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto reset_exit; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_CMD_RESET);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_CMD_RESET);
+    ret = aht21_instance->p_iic_driver_interface->
+                          pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto reset_exit; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* Wait 20ms for soft reset to complete */
@@ -579,9 +635,11 @@ static aht21_status_t aht21_reset (bsp_aht21_driver_t * const aht21_instance )
     return AHT21_OK;
 
 reset_exit:
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
     return ret;
 }
@@ -646,31 +704,43 @@ static aht21_status_t aht21_wakeup (bsp_aht21_driver_t * const aht21_instance)
     check_param(IS_VAILD(aht21_instance->p_iic_driver_interface));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_enter();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_enter(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* Send trigger measurement to wake up sensor */
-    aht21_instance->p_iic_driver_interface->pf_iic_start();
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_WRITE_ADD);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_start(IIC_CONTEXT(aht21_instance));
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_WRITE_ADD);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto wakeup_exit; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(AHT21_CMD_TRIGGER_MEASUREMENT);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), AHT21_CMD_TRIGGER_MEASUREMENT);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto wakeup_exit; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(0x33);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), 0x33);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto wakeup_exit; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_send_byte(0x00);
-    ret = aht21_instance->p_iic_driver_interface->pf_iic_wait_ack();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_send_byte(IIC_CONTEXT(aht21_instance), 0x00);
+    ret = aht21_instance->p_iic_driver_interface->
+                    pf_iic_wait_ack(IIC_CONTEXT(aht21_instance));
     if (AHT21_OK != ret) { goto wakeup_exit; }
 
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
 
     /* Wait for measurement to complete */
@@ -679,9 +749,11 @@ static aht21_status_t aht21_wakeup (bsp_aht21_driver_t * const aht21_instance)
     return AHT21_OK;
 
 wakeup_exit:
-    aht21_instance->p_iic_driver_interface->pf_iic_stop();
+    aht21_instance->p_iic_driver_interface->
+                    pf_iic_stop(IIC_CONTEXT(aht21_instance));
 #ifdef SOFTWARE_IIC
-    aht21_instance->p_iic_driver_interface->pf_critical_exit();
+    aht21_instance->p_iic_driver_interface->
+                    pf_critical_exit(IIC_CONTEXT(aht21_instance));
 #endif
     return ret;
 }
