@@ -98,6 +98,15 @@ aht21_status_t aht21_create(bsp_aht21_driver_t *const p_aht21_driver,
     p_aht21_driver->pf_sleep = aht21_sleep;
     p_aht21_driver->pf_wakeup = aht21_wakeup;
 
+    // Init aht21
+    if (p_aht21_driver->pf_init(p_aht21_driver) != AHT21_OK)
+    {
+#ifdef DEBUG
+        log_e("Aht21 create failed! init ajt21 driver failed!");
+#endif
+        return AHT21_ERROR_RESOURCE; 
+    }
+
     return AHT21_OK;
 }
 
